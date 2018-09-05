@@ -1,8 +1,12 @@
 [package]
-name = "ggez-specs-hello-world"
+name = "ggez-specs-rhusics-hello-world"
 version = "0.1.0"
 authors = ["Rafael Delboni <rafadelboni@gmail.com>"]
 
 [dependencies]
-ggez = { version = "0.4", features = ["cargo-resource-root"] }
-specs = "0.12"
+ggez = { version = "^0.4", features = ["cargo-resource-root"] }
+specs = "^0.12"
+rhusics-core = "^0.5"
+rhusics-ecs = "^0.5"
+shrev = "^1.0"
+cgmath = "^0.16"

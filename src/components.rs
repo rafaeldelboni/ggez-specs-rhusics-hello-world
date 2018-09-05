@@ -1,14 +1,14 @@
 use ggez::graphics;
 
-use specs::{Component, VecStorage};
+use specs::{Component, NullStorage, VecStorage};
 
 #[derive(Debug)]
-pub struct Text {
-    pub value: graphics::Text,
+pub struct Square {
+    pub body_shape: graphics::Point2,
     pub position: graphics::Point2,
 }
 
-impl Component for Text {
+impl Component for Square {
     type Storage = VecStorage<Self>;
 }
 
@@ -22,10 +22,10 @@ impl Component for Velocity {
     type Storage = VecStorage<Self>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Controlable;
 
 impl Component for Controlable {
-    type Storage = VecStorage<Self>;
+    type Storage = NullStorage<Self>;
 }
 

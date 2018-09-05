@@ -1,5 +1,9 @@
 extern crate ggez;
 extern crate specs;
+extern crate rhusics_core;
+extern crate rhusics_ecs;
+extern crate shrev;
+extern crate cgmath;
 
 mod systems;
 mod components;
@@ -9,72 +13,136 @@ use ggez::event;
 use ggez::graphics;
 use ggez::{Context, GameResult};
 
-use specs::{Builder, World, RunNow};
+use specs::{Dispatcher, DispatcherBuilder, Builder, World, RunNow};
 
-use systems::{Systems, ControlSystem, RenderingSystem, MoveSystem};
-use components::{Controlable, Text, Velocity};
+use rhusics_core::{RigidBody, Pose};
+use rhusics_ecs::{DeltaTime, WithRigidBody};
+use rhusics_ecs::collide2d::{
+    BroadBruteForce2,
+    GJK2,
+    BodyPose2,
+    CollisionStrategy,
+    CollisionShape2,
+    CollisionMode};
+use rhusics_ecs::physics2d::{
+    ContactEvent2, ContactResolutionSystem2, CurrentFrameUpdateSystem2,
+    NextFrameSetupSystem2, SpatialCollisionSystem2,
+    SpatialSortingSystem2, Rectangle, Mass2};
+use cgmath::{Basis2, One, Point2};
+use shrev::EventChannel;
 
-struct MainState {
+use systems::{ControlSystem, RenderingSystem, MoveSystem};
+use components::{Controlable, Square, Velocity};
+
+struct MainState<'a, 'b> {
     frames: usize,
     world: World,
-    systems: Systems,
+    dispatcher: Dispatcher<'a, 'b>,
 }
 
-impl MainState {
-    fn new(ctx: &mut Context) -> GameResult<MainState> {
+impl<'a, 'b> MainState<'a, 'b> {
+    fn new(ctx: &mut Context) -> GameResult<MainState<'a, 'b>> {
         graphics::set_default_filter(ctx, graphics::FilterMode::Nearest);
 
         let mut world = World::new();
-        world.register::<Text>();
+        world.register::<Square>();
         world.register::<Velocity>();
         world.register::<Controlable>();
 
-        let systems = Systems {
-            move_system: MoveSystem,
-        };
+        let mut impulse_solver = CurrentFrameUpdateSystem2::<f32, BodyPose2<f32>>::new();
+        let mut next_frame = NextFrameSetupSystem2::<f32, BodyPose2<f32>>::new();
+        let mut sort = SpatialSortingSystem2::<f32, BodyPose2<f32>, ()>::new();
+        let mut collide = SpatialCollisionSystem2::<f32, BodyPose2<f32>, ()>::new()
+                    .with_broad_phase(BroadBruteForce2::default())
+                    .with_narrow_phase(GJK2::new());
+        let mut contact_resolution = ContactResolutionSystem2::<f32, BodyPose2<f32>>::new();
+        impulse_solver.setup(&mut world.res);
+        next_frame.setup(&mut world.res);
+        sort.setup(&mut world.res);
+        collide.setup(&mut world.res);
+        contact_resolution.setup(&mut world.res);
 
-        let font = graphics::Font::new(ctx, "/DejaVuSerif.ttf", 48)?;
+        let dispatcher: Dispatcher<'a, 'b> = DispatcherBuilder::new()
+            .with(MoveSystem, "move_system", &[])
+            .with(
+                impulse_solver,
+                "solver",
+                &[],
+            )
+            .with(
+                next_frame,
+                "next_frame",
+                &["solver"],
+            )
+            .with(
+                sort,
+                "sorting",
+                &["next_frame"],
+            )
+            .with(
+                collide,
+                "collision",
+                &["sorting"],
+            )
+            .with(
+                contact_resolution,
+                "resolution",
+                &["collision"],
+            )
+            .build();
 
         world
             .create_entity()
-            .with(Text {
-                value: graphics::Text::new(ctx, "Static text!", &font)?,
+            .with_static_rigid_body(
+                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
+                    CollisionStrategy::FullResolution,
+                    CollisionMode::Discrete,
+                    Rectangle::new(100., 100.).into(),
+                ),
+                BodyPose2::new(Point2::new(10., 10.), Basis2::one()),
+                RigidBody::default(),
+                Mass2::new(1.),
+            )
+            .with(Square {
+                body_shape: graphics::Point2::new(100.0, 100.0),
                 position: graphics::Point2::new(10.0, 10.0)})
             .build();
 
         world
             .create_entity()
-            .with(Text {
-                value: graphics::Text::new(
-                           ctx,
-                           "I'm a moving alone text!",
-                           &font)?,
+            .with(Square {
+                body_shape: graphics::Point2::new(400.0, 100.0),
                 position: graphics::Point2::new(20.0, 200.0)})
             .with(Velocity { x: 5., y: 5. })
             .build();
 
         world
             .create_entity()
-            .with(Text {
-                value: graphics::Text::new(ctx, "Move-me text!", &font)?,
+            .with(Square {
+                body_shape: graphics::Point2::new(200.0, 100.0),
                 position: graphics::Point2::new(20.0, 400.0)})
             .with(Velocity { x: 0., y: 0. })
             .with(Controlable)
             .build();
 
+        world.write_resource::<EventChannel<ContactEvent2<f32>>>()
+            .register_reader();
+
         let state = MainState {
             frames: 0,
             world,
-            systems,
+            dispatcher,
         };
 
         Ok(state)
     }
 }
 
-impl event::EventHandler for MainState {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        self.systems.move_system.run_now(&self.world.res);
+impl<'a, 'b> event::EventHandler for MainState<'a, 'b> {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let dt = ggez::timer::get_delta(ctx);
+        self.world.write_resource::<DeltaTime<f32>>().delta_seconds = dt.as_secs() as f32;
+        self.dispatcher.dispatch(&mut self.world.res);
         Ok(())
     }
 

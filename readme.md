@@ -1,6 +1,6 @@
-# GGEZ Specs Hello World!
+# GGEZ Specs Rhusics Hello World!
 [![Status][badge-status]][badge-status]
-#### A Hello World Project to test GGEZ, Specs and Rust.
+#### Yet another repo to test GGEZ, Specs and this time Rhusics.
 
 ### Controls
 
@@ -16,7 +16,7 @@ Navigate into your workspace directory.
 
 Run:
 ```bash
-git clone https://github.com/rafaeldelboni/ggez-specs-hello-world.git
+git clone https://github.com/rafaeldelboni/ggez-specs-rhusics-hello-world.git
 ```
 
 ## 2. Install Rust and SDL2 libraries:
@@ -47,5 +47,7 @@ cargo run
 Engine: https://github.com/ggez/ggez
 
 ECS: https://github.com/slide-rs/specs
+
+Rhusics: https://github.com/rustgd/rhusics
 
 [badge-status]: https://img.shields.io/badge/status-done-green.svg
