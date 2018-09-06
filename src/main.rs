@@ -27,8 +27,8 @@ use rhusics_ecs::collide2d::{
 use rhusics_ecs::physics2d::{
     ContactEvent2, ContactResolutionSystem2, CurrentFrameUpdateSystem2,
     NextFrameSetupSystem2, SpatialCollisionSystem2,
-    SpatialSortingSystem2, Rectangle, Mass2};
-use cgmath::{Basis2, One, Point2};
+    SpatialSortingSystem2, Rectangle, Mass2, Velocity2};
+use cgmath::{Basis2, One, Point2, Vector2};
 use shrev::EventChannel;
 
 use systems::{ControlSystem, RenderingSystem, MoveSystem};
@@ -56,14 +56,79 @@ impl<'a, 'b> MainState<'a, 'b> {
                     .with_broad_phase(BroadBruteForce2::default())
                     .with_narrow_phase(GJK2::new());
         let mut contact_resolution = ContactResolutionSystem2::<f32, BodyPose2<f32>>::new();
+
         impulse_solver.setup(&mut world.res);
         next_frame.setup(&mut world.res);
         sort.setup(&mut world.res);
         collide.setup(&mut world.res);
         contact_resolution.setup(&mut world.res);
 
+        world.write_resource::<EventChannel<ContactEvent2<f32>>>()
+            .register_reader();
+
+        world
+            .create_entity()
+            .with_dynamic_rigid_body(
+                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
+                    CollisionStrategy::FullResolution,
+                    CollisionMode::Discrete,
+                    Rectangle::new(100., 100.).into(),
+                ),
+                BodyPose2::new(Point2::new(10., 10.), Basis2::one()),
+                Velocity2::new(Vector2::new(0.0, 0.0), 0.0),
+                RigidBody::default(),
+                Mass2::new(1.),
+            )
+            .with(Square {
+                body_shape: graphics::Point2::new(100.0, 100.0),
+                position: graphics::Point2::new(10.0, 10.0)})
+            .build();
+
+        world
+            .create_entity()
+            .with_dynamic_rigid_body(
+                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
+                    CollisionStrategy::FullResolution,
+                    CollisionMode::Discrete,
+                    Rectangle::new(400., 100.).into(),
+                ),
+                BodyPose2::new(Point2::new(20., 200.), Basis2::one()),
+                Velocity2::new(Vector2::new(5.0, 5.0), 0.0),
+                RigidBody::default(),
+                Mass2::new(1.),
+            )
+            .with(Square {
+                body_shape: graphics::Point2::new(400.0, 100.0),
+                position: graphics::Point2::new(20.0, 200.0)})
+            .with(Velocity { x: 5., y: 5. })
+            .build();
+
+        world
+            .create_entity()
+            .with_dynamic_rigid_body(
+                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
+                    CollisionStrategy::FullResolution,
+                    CollisionMode::Discrete,
+                    Rectangle::new(200., 100.).into(),
+                ),
+                BodyPose2::new(Point2::new(20., 400.), Basis2::one()),
+                Velocity2::new(Vector2::new(0.0, 0.0), 0.0),
+                RigidBody::default(),
+                Mass2::new(1.),
+            )
+            .with(Square {
+                body_shape: graphics::Point2::new(200.0, 100.0),
+                position: graphics::Point2::new(20.0, 400.0)})
+            .with(Velocity { x: 0., y: 0. })
+            .with(Controlable)
+            .build();
+
         let dispatcher: Dispatcher<'a, 'b> = DispatcherBuilder::new()
-            .with(MoveSystem, "move_system", &[])
+            .with(
+                MoveSystem,
+                "move_system",
+                &[],
+            )
             .with(
                 impulse_solver,
                 "solver",
@@ -91,43 +156,6 @@ impl<'a, 'b> MainState<'a, 'b> {
             )
             .build();
 
-        world
-            .create_entity()
-            .with_static_rigid_body(
-                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
-                    CollisionStrategy::FullResolution,
-                    CollisionMode::Discrete,
-                    Rectangle::new(100., 100.).into(),
-                ),
-                BodyPose2::new(Point2::new(10., 10.), Basis2::one()),
-                RigidBody::default(),
-                Mass2::new(1.),
-            )
-            .with(Square {
-                body_shape: graphics::Point2::new(100.0, 100.0),
-                position: graphics::Point2::new(10.0, 10.0)})
-            .build();
-
-        world
-            .create_entity()
-            .with(Square {
-                body_shape: graphics::Point2::new(400.0, 100.0),
-                position: graphics::Point2::new(20.0, 200.0)})
-            .with(Velocity { x: 5., y: 5. })
-            .build();
-
-        world
-            .create_entity()
-            .with(Square {
-                body_shape: graphics::Point2::new(200.0, 100.0),
-                position: graphics::Point2::new(20.0, 400.0)})
-            .with(Velocity { x: 0., y: 0. })
-            .with(Controlable)
-            .build();
-
-        world.write_resource::<EventChannel<ContactEvent2<f32>>>()
-            .register_reader();
-
         let state = MainState {
             frames: 0,
             world,
@@ -142,7 +170,8 @@ impl<'a, 'b> event::EventHandler for MainState<'a, 'b> {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         let dt = ggez::timer::get_delta(ctx);
         self.world.write_resource::<DeltaTime<f32>>().delta_seconds = dt.as_secs() as f32;
-        self.dispatcher.dispatch(&mut self.world.res);
+        self.dispatcher.dispatch(&self.world.res);
+        self.world.maintain();
         Ok(())
     }
 

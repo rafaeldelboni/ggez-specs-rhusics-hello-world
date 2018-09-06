@@ -2,20 +2,41 @@ use ggez::event;
 use ggez::graphics;
 use ggez::{Context};
 
-use specs::{System, WriteStorage, ReadStorage, Join};
+use rhusics_core::{Pose};
+use rhusics_ecs::physics2d::{BodyPose2, RigidBodyParts2};
+use cgmath::{Vector2};
+
+use specs::{Join, ReadStorage, System, WriteStorage};
 
 use components::{Square, Velocity, Controlable};
 
 pub struct MoveSystem;
 
 impl<'a> System<'a> for MoveSystem {
-    type SystemData = (ReadStorage<'a, Velocity>, WriteStorage<'a, Square>);
+    type SystemData = (
+        RigidBodyParts2<'a, f32, BodyPose2<f32>, ()>,
+        ReadStorage<'a, Velocity>,
+        WriteStorage<'a, Square>
+    );
 
-    fn run(&mut self, (vel, mut text): Self::SystemData) {
-        (&vel, &mut text).join().for_each(|(vel, text)| {
-            text.position.x += vel.x * 0.05;
-            text.position.y += vel.y * 0.05;
-        });
+    fn run(&mut self, (mut rigid_body_parts, vel, mut square): Self::SystemData) {
+        for (body, mut forces, vel, square) in (
+            &rigid_body_parts.poses,
+            &mut rigid_body_parts.forces,
+            &vel,
+            &mut square
+        ).join(){
+            let pos = body.position();
+
+            square.position.x = pos.x;
+            square.position.y = pos.y;
+
+            forces.add_force(
+                Vector2::new(vel.x * 10., vel.y * 10.)
+            );
+
+            println!("{:?} {:?} {:?} {:?}", square.position, pos, forces, vel);
+        };
     }
 }
 
