@@ -7,32 +7,29 @@ extern crate cgmath;
 
 mod systems;
 mod components;
+mod entities;
 
 use ggez::conf;
 use ggez::event;
 use ggez::graphics;
 use ggez::{Context, GameResult};
 
-use specs::{Dispatcher, DispatcherBuilder, Builder, World, RunNow};
+use specs::{Dispatcher, DispatcherBuilder, World, RunNow};
 
-use rhusics_core::{RigidBody, Pose};
-use rhusics_ecs::{DeltaTime, WithRigidBody};
+use rhusics_ecs::{DeltaTime};
 use rhusics_ecs::collide2d::{
     BroadBruteForce2,
     GJK2,
-    BodyPose2,
-    CollisionStrategy,
-    CollisionShape2,
-    CollisionMode};
+    BodyPose2};
 use rhusics_ecs::physics2d::{
     ContactEvent2, ContactResolutionSystem2, CurrentFrameUpdateSystem2,
     NextFrameSetupSystem2, SpatialCollisionSystem2,
-    SpatialSortingSystem2, Rectangle, Mass2, Velocity2};
-use cgmath::{Basis2, One, Point2, Vector2};
+    SpatialSortingSystem2};
+
 use shrev::EventChannel;
 
 use systems::{ControlSystem, RenderingSystem, MoveSystem};
-use components::{Controlable, Square, Velocity};
+use components::{Controlable};
 
 struct MainState<'a, 'b> {
     frames: usize,
@@ -45,8 +42,6 @@ impl<'a, 'b> MainState<'a, 'b> {
         graphics::set_default_filter(ctx, graphics::FilterMode::Nearest);
 
         let mut world = World::new();
-        world.register::<Square>();
-        world.register::<Velocity>();
         world.register::<Controlable>();
 
         let mut impulse_solver = CurrentFrameUpdateSystem2::<f32, BodyPose2<f32>>::new();
@@ -66,62 +61,9 @@ impl<'a, 'b> MainState<'a, 'b> {
         world.write_resource::<EventChannel<ContactEvent2<f32>>>()
             .register_reader();
 
-        world
-            .create_entity()
-            .with_dynamic_rigid_body(
-                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
-                    CollisionStrategy::FullResolution,
-                    CollisionMode::Discrete,
-                    Rectangle::new(100., 100.).into(),
-                ),
-                BodyPose2::new(Point2::new(10., 10.), Basis2::one()),
-                Velocity2::new(Vector2::new(0.0, 0.0), 0.0),
-                RigidBody::default(),
-                Mass2::new(1.),
-            )
-            .with(Square {
-                body_shape: graphics::Point2::new(100.0, 100.0),
-                position: graphics::Point2::new(10.0, 10.0)})
-            .build();
-
-        world
-            .create_entity()
-            .with_dynamic_rigid_body(
-                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
-                    CollisionStrategy::FullResolution,
-                    CollisionMode::Discrete,
-                    Rectangle::new(400., 100.).into(),
-                ),
-                BodyPose2::new(Point2::new(20., 200.), Basis2::one()),
-                Velocity2::new(Vector2::new(5.0, 5.0), 0.0),
-                RigidBody::default(),
-                Mass2::new(1.),
-            )
-            .with(Square {
-                body_shape: graphics::Point2::new(400.0, 100.0),
-                position: graphics::Point2::new(20.0, 200.0)})
-            .with(Velocity { x: 5., y: 5. })
-            .build();
-
-        world
-            .create_entity()
-            .with_dynamic_rigid_body(
-                CollisionShape2::<f32, BodyPose2<f32>, ()>::new_simple(
-                    CollisionStrategy::FullResolution,
-                    CollisionMode::Discrete,
-                    Rectangle::new(200., 100.).into(),
-                ),
-                BodyPose2::new(Point2::new(20., 400.), Basis2::one()),
-                Velocity2::new(Vector2::new(0.0, 0.0), 0.0),
-                RigidBody::default(),
-                Mass2::new(1.),
-            )
-            .with(Square {
-                body_shape: graphics::Point2::new(200.0, 100.0),
-                position: graphics::Point2::new(20.0, 400.0)})
-            .with(Velocity { x: 0., y: 0. })
-            .with(Controlable)
-            .build();
+        entities::create_static(&mut world);
+        entities::create_moving(&mut world);
+        entities::create_player(&mut world);
 
         let dispatcher: Dispatcher<'a, 'b> = DispatcherBuilder::new()
             .with(

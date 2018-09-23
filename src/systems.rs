@@ -2,40 +2,27 @@ use ggez::event;
 use ggez::graphics;
 use ggez::{Context};
 
-use rhusics_core::{Pose};
 use rhusics_ecs::physics2d::{BodyPose2, RigidBodyParts2};
 use cgmath::{Vector2};
 
 use specs::{Join, ReadStorage, System, WriteStorage};
 
-use components::{Square, Velocity, Controlable};
+use components::{Controlable};
 
 pub struct MoveSystem;
 
 impl<'a> System<'a> for MoveSystem {
     type SystemData = (
         RigidBodyParts2<'a, f32, BodyPose2<f32>, ()>,
-        ReadStorage<'a, Velocity>,
-        WriteStorage<'a, Square>
+        ReadStorage<'a, Controlable>
     );
 
-    fn run(&mut self, (mut rigid_body_parts, vel, mut square): Self::SystemData) {
-        for (body, mut forces, vel, square) in (
-            &rigid_body_parts.poses,
+    fn run(&mut self, (mut rigid_body_parts, control): Self::SystemData) {
+        for (mut forces, control) in (
             &mut rigid_body_parts.forces,
-            &vel,
-            &mut square
+            &control
         ).join(){
-            let pos = body.position();
-
-            square.position.x = pos.x;
-            square.position.y = pos.y;
-
-            forces.add_force(
-                Vector2::new(vel.x * 10., vel.y * 10.)
-            );
-
-            println!("{:?} {:?} {:?} {:?}", square.position, pos, forces, vel);
+            forces.add_force(Vector2::new(control.x, control.y));
         };
     }
 }
@@ -51,21 +38,22 @@ impl<'c> RenderingSystem<'c> {
 }
 
 impl<'a, 'c> System<'a> for RenderingSystem<'c> {
-    type SystemData = ReadStorage<'a, Square>;
+    type SystemData = RigidBodyParts2<'a, f32, BodyPose2<f32>, ()>;
 
-    fn run(&mut self, texts: Self::SystemData) {
-        &texts.join().for_each(|square| {
+    fn run(&mut self, bodies: Self::SystemData) {
+        for shape in (&bodies.shapes).join() {
+            let shape = shape.bound();
             graphics::rectangle(
                 self.ctx,
                 graphics::DrawMode::Line(1.0),
                 graphics::Rect::new(
-                    square.position.x,
-                    square.position.y,
-                    square.body_shape.x,
-                    square.body_shape.y
+                    shape.min.x,
+                    shape.min.y,
+                    shape.max.x - shape.min.x,
+                    shape.max.y - shape.min.y
                 )
-            ).unwrap();
-        });
+            ).expect("Error drawing entity bounds!");
+        };
     }
 }
 
@@ -82,28 +70,27 @@ impl ControlSystem {
 
 impl<'a> System<'a> for ControlSystem {
     type SystemData = (
-        WriteStorage<'a, Velocity>,
-        ReadStorage<'a, Controlable>,
+        WriteStorage<'a, Controlable>
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut velocities, controlables) = data;
-        for (vel, _control) in (&mut velocities, &controlables).join() {
+        let mut controlables = data;
+        for control in (&mut controlables).join() {
             match self.down_event {
                 true =>
                     match self.keycode {
-                        event::Keycode::Up => vel.y = -20.0,
-                        event::Keycode::Down => vel.y = 20.0,
-                        event::Keycode::Left => vel.x = -20.0,
-                        event::Keycode::Right => vel.x = 20.0,
+                        event::Keycode::Up => control.y = -200.0,
+                        event::Keycode::Down => control.y = 200.0,
+                        event::Keycode::Left => control.x = -200.0,
+                        event::Keycode::Right => control.x = 200.0,
                         _ => {}
                     }
                 false =>
                     match self.keycode {
-                        event::Keycode::Up => vel.y = 0.0,
-                        event::Keycode::Down => vel.y = 0.0,
-                        event::Keycode::Left => vel.x = 0.0,
-                        event::Keycode::Right => vel.x = 0.0,
+                        event::Keycode::Up => control.y = 0.0,
+                        event::Keycode::Down => control.y = 0.0,
+                        event::Keycode::Left => control.x = 0.0,
+                        event::Keycode::Right => control.x = 0.0,
                         _ => {}
                     }
             }
