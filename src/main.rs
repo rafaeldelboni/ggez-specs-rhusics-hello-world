@@ -12,6 +12,7 @@ mod entities;
 use ggez::conf;
 use ggez::event;
 use ggez::graphics;
+use ggez::timer;
 use ggez::{Context, GameResult};
 
 use specs::{Dispatcher, DispatcherBuilder, World, RunNow};
@@ -32,7 +33,6 @@ use systems::{ControlSystem, RenderingSystem, MoveSystem};
 use components::{Controlable};
 
 struct MainState<'a, 'b> {
-    frames: usize,
     world: World,
     dispatcher: Dispatcher<'a, 'b>,
 }
@@ -66,40 +66,15 @@ impl<'a, 'b> MainState<'a, 'b> {
         entities::create_player(&mut world);
 
         let dispatcher: Dispatcher<'a, 'b> = DispatcherBuilder::new()
-            .with(
-                MoveSystem,
-                "move_system",
-                &[],
-            )
-            .with(
-                impulse_solver,
-                "solver",
-                &[],
-            )
-            .with(
-                next_frame,
-                "next_frame",
-                &["solver"],
-            )
-            .with(
-                sort,
-                "sorting",
-                &["next_frame"],
-            )
-            .with(
-                collide,
-                "collision",
-                &["sorting"],
-            )
-            .with(
-                contact_resolution,
-                "resolution",
-                &["collision"],
-            )
+            .with(MoveSystem, "move_system", &[])
+            .with(impulse_solver, "solver", &[])
+            .with(next_frame, "next_frame", &["solver"])
+            .with(sort, "sorting", &["next_frame"])
+            .with(collide, "collision", &["sorting"])
+            .with(contact_resolution, "resolution", &["collision"])
             .build();
 
         let state = MainState {
-            frames: 0,
             world,
             dispatcher,
         };
@@ -128,8 +103,7 @@ impl<'a, 'b> event::EventHandler for MainState<'a, 'b> {
 
         graphics::present(ctx);
 
-        self.frames += 1;
-        if (self.frames % 100) == 0 {
+        if timer::get_ticks(ctx) % 100 == 0 {
             println!("FPS: {}", ggez::timer::get_fps(ctx));
         }
 
