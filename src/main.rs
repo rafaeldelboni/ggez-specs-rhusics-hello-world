@@ -169,7 +169,8 @@ impl<'a, 'b> MainState<'a, 'b> {
 impl<'a, 'b> event::EventHandler for MainState<'a, 'b> {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         let dt = ggez::timer::get_delta(ctx);
-        self.world.write_resource::<DeltaTime<f32>>().delta_seconds = dt.as_secs() as f32;
+        let seconds = (dt.as_secs() as f32 + (dt.subsec_nanos() as f32 / 1_000_000_000.0)).min(1.0 / 20.0);
+        self.world.write_resource::<DeltaTime<f32>>().delta_seconds = seconds;
         self.dispatcher.dispatch(&self.world.res);
         self.world.maintain();
         Ok(())
