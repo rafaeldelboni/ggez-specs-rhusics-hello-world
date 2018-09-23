@@ -50,4 +50,4 @@ ECS: https://github.com/slide-rs/specs
 
 Rhusics: https://github.com/rustgd/rhusics
 
-[badge-status]: https://img.shields.io/badge/status-work%20in%20progress-lightgrey.svg
+[badge-status]: https://img.shields.io/badge/status-done-green.svg
