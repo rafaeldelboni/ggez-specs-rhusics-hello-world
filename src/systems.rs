@@ -7,14 +7,14 @@ use cgmath::{Vector2};
 
 use specs::{Join, ReadStorage, System, WriteStorage};
 
-use components::{Controlable};
+use components::{Controllable};
 
 pub struct MoveSystem;
 
 impl<'a> System<'a> for MoveSystem {
     type SystemData = (
         RigidBodyParts2<'a, f32, BodyPose2<f32>, ()>,
-        ReadStorage<'a, Controlable>
+        ReadStorage<'a, Controllable>
     );
 
     fn run(&mut self, (mut rigid_body_parts, control): Self::SystemData) {
@@ -70,12 +70,12 @@ impl ControlSystem {
 
 impl<'a> System<'a> for ControlSystem {
     type SystemData = (
-        WriteStorage<'a, Controlable>
+        WriteStorage<'a, Controllable>
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let mut controlables = data;
-        for control in (&mut controlables).join() {
+        let mut controllables = data;
+        for control in (&mut controllables).join() {
             match self.down_event {
                 true =>
                     match self.keycode {

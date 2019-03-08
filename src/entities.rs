@@ -10,7 +10,7 @@ use rhusics_ecs::physics2d::{
     Rectangle, Mass2, Velocity2};
 use cgmath::{Basis2, One, Point2, Vector2};
 
-use components::{Controlable};
+use components::{Controllable};
 
 pub fn create_static(world: &mut World) {
     world
@@ -59,6 +59,6 @@ pub fn create_player(world: &mut World) {
             RigidBody::default(),
             Mass2::new(1.),
         )
-        .with(Controlable { x: 0., y: 0. })
+        .with(Controllable { x: 0., y: 0. })
         .build();
 }
