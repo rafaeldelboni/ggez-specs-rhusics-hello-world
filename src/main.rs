@@ -30,7 +30,7 @@ use rhusics_ecs::physics2d::{
 use shrev::EventChannel;
 
 use systems::{ControlSystem, RenderingSystem, MoveSystem};
-use components::{Controlable};
+use components::{Controllable};
 
 struct MainState<'a, 'b> {
     world: World,
@@ -42,7 +42,7 @@ impl<'a, 'b> MainState<'a, 'b> {
         graphics::set_default_filter(ctx, graphics::FilterMode::Nearest);
 
         let mut world = World::new();
-        world.register::<Controlable>();
+        world.register::<Controllable>();
 
         let mut impulse_solver = CurrentFrameUpdateSystem2::<f32, BodyPose2<f32>>::new();
         let mut next_frame = NextFrameSetupSystem2::<f32, BodyPose2<f32>>::new();
